@@ -222,16 +222,20 @@ function render(){
   const metr=S.reduce((a,s)=>a+s.m,0),harajat=E.reduce((a,e)=>a+e.sum,0);
   const L=D.loss.filter(l=>inPeriod(l.t)),kamM=L.reduce((a,l)=>a+l.m,0),kamS=L.reduce((a,l)=>a+l.cost,0);
   const yalpi=tushum-tannarx,sof=yalpi-harajat-kamS;
+  const row=(l,v,c='',bold)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;${bold?'border-top:1px solid var(--b);font-weight:700;font-size:16px':'font-size:15px'}"><span>${l}</span><span class="${c}" style="white-space:nowrap;padding-left:8px">${v}</span></div>`;
   $('stats').innerHTML=`
-    <div class="stat big"><div class="l">Sof foyda (harajat va kam chiqqani ayirilgan)</div><div class="v">${fm(sof)}</div></div>
-    <div class="stat"><div class="l">Tushum (kassa)</div><div class="v">${fm(tushum)}</div></div>
+    <div class="stat big"><div class="l">💰 Sof foyda — qo'lingizda qoladigani</div><div class="v">${fm(sof)}</div></div>
+    <div class="card" style="grid-column:1/-1;margin:0">
+      <h2>🧮 Hisob-kitob</h2>
+      ${row('Tushum (mijozlardan olingan pul)',fm(tushum))}
+      ${row('− Sotilgan chaspak tannarxi',fm(tannarx),'neg')}
+      ${row('= Savdodan foyda (harajatsiz)',fm(yalpi),yalpi<0?'neg':'pos',1)}
+      ${row('− Harajatlar',fm(harajat),'neg')}
+      ${kamS?row('− Kam chiqqan '+fmM(kamM),fm(kamS),'neg'):''}
+      ${row('= Sof foyda',fm(sof),sof<0?'neg':'pos',1)}
+    </div>
     <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
-    <div class="stat"><div class="l">Tannarx</div><div class="v">${fm(tannarx)}</div></div>
-    <div class="stat"><div class="l">Yalpi foyda</div><div class="v ${yalpi<0?'neg':'pos'}">${fm(yalpi)}</div></div>
-    <div class="stat"><div class="l">Harajatlar</div><div class="v neg">${fm(harajat)}</div></div>
-    <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>
-    <div class="stat"><div class="l">Kam chiqqan metr</div><div class="v" style="color:#ea580c">${fmM(kamM)}</div></div>
-    <div class="stat"><div class="l">Kam chiqqan zarar</div><div class="v neg">${fm(kamS)}</div></div>`;
+    <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>`;
 
   // Qoldiq
   $('stock').innerHTML=list.length?list.map(x=>{
