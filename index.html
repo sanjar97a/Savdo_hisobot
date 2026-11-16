@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0f766e">
+<title>Chaspak Savdo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--p:#0f766e;--p2:#14b8a6;--bg:#f1f5f9;--card:#fff;--t:#0f172a;--m:#64748b;--r:#dc2626;--g:#16a34a;--b:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--t);padding-bottom:80px}
+header{background:var(--p);color:#fff;padding:16px;position:sticky;top:0;z-index:5}
+header h1{font-size:20px}
+header small{opacity:.85}
+main{padding:12px;max-width:640px;margin:auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.card h2{font-size:16px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 1px 3px #0001}
+.stat .l{font-size:12px;color:var(--m)}
+.stat .v{font-size:18px;font-weight:700;margin-top:4px}
+.stat.big{grid-column:1/-1;background:var(--p);color:#fff}
+.stat.big .l{color:#ccfbf1}
+.stat.big .v{font-size:24px}
+label{font-size:13px;color:var(--m);display:block;margin:8px 0 4px}
+input,select{width:100%;padding:12px;border:1px solid var(--b);border-radius:10px;font-size:16px;background:#fff}
+input:focus,select:focus{outline:2px solid var(--p2);border-color:transparent}
+button{border:0;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer}
+.btn{background:var(--p);color:#fff;width:100%;margin-top:12px}
+.btn2{background:var(--b);color:var(--t)}
+.preview{background:#f0fdfa;border:1px dashed var(--p2);border-radius:10px;padding:10px;margin-top:10px;font-size:14px;line-height:1.6}
+.list .it{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--b);gap:8px}
+.list .it:last-child{border:0}
+.it .n{font-weight:600;font-size:15px}
+.it .s{font-size:12px;color:var(--m);margin-top:2px}
+.it .a{text-align:right;font-weight:700;white-space:nowrap}
+.del{background:none;color:var(--r);padding:4px 8px;font-size:18px}
+.pos{color:var(--g)}.neg{color:var(--r)}
+.bar{height:8px;background:var(--b);border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--p2)}
+.low .bar i{background:var(--r)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid var(--b);z-index:5;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border-radius:0;padding:8px 2px;font-size:11px;color:var(--m);font-weight:500}
+nav button b{display:block;font-size:20px;margin-bottom:2px}
+nav button.on{color:var(--p)}
+.tab{display:none}.tab.on{display:block}
+.chips{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto}
+.chips button{background:#fff;padding:8px 14px;font-size:14px;border:1px solid var(--b);white-space:nowrap}
+.chips button.on{background:var(--p);color:#fff;border-color:var(--p)}
+.empty{text-align:center;color:var(--m);padding:20px;font-size:14px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.row{display:flex;gap:8px}.row>*{flex:1}
+</style>
+</head>
+<body>
+<header><h1>📏 Chaspak Savdo</h1><small id="today"></small></header>
+
+<main>
+<!-- ASOSIY -->
+<section class="tab on" id="t-home">
+  <div class="chips" id="period">
+    <button data-p="day" class="on">Bugun</button>
+    <button data-p="week">7 kun</button>
+    <button data-p="month">Shu oy</button>
+    <button data-p="all">Hammasi</button>
+  </div>
+  <div class="grid" id="stats"></div>
+  <div class="card" style="margin-top:12px">
+    <h2>📦 Ombordagi qoldiq</h2>
+    <div class="list" id="stock"></div>
+  </div>
+</section>
+
+<!-- SOTUV -->
+<section class="tab" id="t-sale">
+  <div class="card">
+    <h2>🛒 Yangi sotuv</h2>
+    <label>Chaspak turi</label>
+    <select id="s-prod"></select>
+    <div class="row">
+      <div><label>Necha metr</label><input id="s-m" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+      <div><label>1 metr narxi (so'm)</label><input id="s-p" type="number" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <label>Izoh (ixtiyoriy)</label>
+    <input id="s-note" placeholder="Mijoz, telefon...">
+    <div class="preview" id="s-prev">Metr va narxni kiriting</div>
+    <button class="btn" id="s-add">✅ Sotildi</button>
+  </div>
+  <div class="card"><h2>Oxirgi sotuvlar</h2><div class="list" id="sales"></div></div>
+</section>
+
+<!-- KIRIM -->
+<section class="tab" id="t-buy">
+  <div class="card">
+    <h2>📥 Chaspak sotib oldim (kirim)</h2>
+    <label>Nomi / turi</label>
+    <input id="b-name" list="names" placeholder="Masalan: Shaffof 50sm">
+    <datalist id="names"></datalist>
+    <div class="row">
+      <div><label>Necha metr</label><input id="b-m" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
+      <div><label>Jami to'lagan pulim</label><input id="b-sum" type="number" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <label>Sotish narxi, 1 metr (ixtiyoriy)</label>
+    <input id="b-sell" type="number" inputmode="numeric" placeholder="Sotuvda avtomatik chiqadi">
+    <div class="preview" id="b-prev">Metr va summani kiriting</div>
+    <button class="btn" id="b-add">➕ Kirim qilish</button>
+  </div>
+  <div class="card"><h2>Kirimlar tarixi</h2><div class="list" id="buys"></div></div>
+</section>
+
+<!-- HARAJAT -->
+<section class="tab" id="t-exp">
+  <div class="card">
+    <h2>💸 Harajat qo'shish</h2>
+    <label>Nima uchun</label>
+    <input id="e-name" list="enames" placeholder="Ijara, yo'l kira, ovqat...">
+    <datalist id="enames"><option>Ijara</option><option>Yo'l kira</option><option>Ovqat</option><option>Svet</option><option>Telefon</option><option>Qaychi/asbob</option></datalist>
+    <label>Summa (so'm)</label>
+    <input id="e-sum" type="number" inputmode="numeric" placeholder="0">
+    <button class="btn" id="e-add">➕ Harajat qo'shish</button>
+  </div>
+  <div class="card"><h2>Harajatlar</h2><div class="list" id="exps"></div></div>
+</section>
+
+<!-- SOZLAMA -->
+<section class="tab" id="t-set">
+  <div class="card">
+    <h2>💾 Zaxira nusxa</h2>
+    <p style="font-size:14px;color:var(--m);margin-bottom:8px">Ma'lumotlar shu telefonning o'zida saqlanadi. Vaqti-vaqti bilan faylga saqlab qo'ying.</p>
+    <button class="btn" id="exp-json">⬇️ Faylga saqlash (backup)</button>
+    <button class="btn btn2" id="imp-btn">⬆️ Fayldan tiklash</button>
+    <input type="file" id="imp" accept=".json" hidden>
+  </div>
+  <div class="card">
+    <h2>⚠️ Tozalash</h2>
+    <button class="btn" style="background:var(--r)" id="wipe">Barcha ma'lumotni o'chirish</button>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button data-t="home" class="on"><b>📊</b>Asosiy</button>
+  <button data-t="sale"><b>🛒</b>Sotuv</button>
+  <button data-t="buy"><b>📥</b>Kirim</button>
+  <button data-t="exp"><b>💸</b>Harajat</button>
+  <button data-t="set"><b>⚙️</b>Sozlama</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='chaspak-savdo-v1';
+let D=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{buys:[],sales:[],exps:[]}}catch(e){return{buys:[],sales:[],exps:[]}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(D));render()}
+const $=id=>document.getElementById(id);
+const num=v=>parseFloat(String(v).replace(',','.'))||0;
+const fm=n=>Math.round(n).toLocaleString('ru-RU').replace(/,/g,' ')+" so'm";
+const fmM=n=>(Math.round(n*100)/100).toLocaleString('ru-RU')+' m';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const dt=t=>{const d=new Date(t);return d.toLocaleDateString('ru-RU')+' '+d.toTimeString().slice(0,5)};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1800)}
+
+// Mahsulotlar bo'yicha qoldiq va o'rtacha tannarx
+function products(){
+  const p={};
+  D.buys.forEach(b=>{const k=b.name;p[k]=p[k]||{name:k,in:0,cost:0,out:0,sell:0};p[k].in+=b.m;p[k].cost+=b.sum;if(b.sell)p[k].sell=b.sell});
+  D.sales.forEach(s=>{if(p[s.name])p[s.name].out+=s.m});
+  Object.values(p).forEach(x=>{x.left=x.in-x.out;x.unit=x.in?x.cost/x.in:0});
+  return p;
+}
+
+let period='day';
+function inPeriod(t){
+  if(period==='all')return true;
+  const d=new Date(t),n=new Date();
+  if(period==='day')return d.toDateString()===n.toDateString();
+  if(period==='week')return n-d<=7*864e5;
+  if(period==='month')return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();
+}
+
+function render(){
+  $('today').textContent=new Date().toLocaleDateString('uz-UZ',{weekday:'long',day:'numeric',month:'long'});
+  const P=products(),list=Object.values(P);
+
+  // Statistika
+  const S=D.sales.filter(s=>inPeriod(s.t)),E=D.exps.filter(e=>inPeriod(e.t));
+  const tushum=S.reduce((a,s)=>a+s.sum,0),tannarx=S.reduce((a,s)=>a+s.cost,0);
+  const metr=S.reduce((a,s)=>a+s.m,0),harajat=E.reduce((a,e)=>a+e.sum,0);
+  const yalpi=tushum-tannarx,sof=yalpi-harajat;
+  $('stats').innerHTML=`
+    <div class="stat big"><div class="l">Sof foyda (harajatsiz)</div><div class="v">${fm(sof)}</div></div>
+    <div class="stat"><div class="l">Tushum (kassa)</div><div class="v">${fm(tushum)}</div></div>
+    <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
+    <div class="stat"><div class="l">Tannarx</div><div class="v">${fm(tannarx)}</div></div>
+    <div class="stat"><div class="l">Yalpi foyda</div><div class="v ${yalpi<0?'neg':'pos'}">${fm(yalpi)}</div></div>
+    <div class="stat"><div class="l">Harajatlar</div><div class="v neg">${fm(harajat)}</div></div>
+    <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>`;
+
+  // Qoldiq
+  $('stock').innerHTML=list.length?list.map(x=>{
+    const pct=x.in?Math.max(0,x.left/x.in*100):0;
+    return `<div class="${pct<15?'low':''}" style="padding:8px 0;border-bottom:1px solid var(--b)">
+      <div style="display:flex;justify-content:space-between"><span class="n">${esc(x.name)}</span><b>${fmM(x.left)}</b></div>
+      <div class="s" style="font-size:12px;color:var(--m)">Kelgan ${fmM(x.in)} · Sotilgan ${fmM(x.out)} · Tannarx ${fm(x.unit)}/m · Qoldiq qiymati ${fm(x.left*x.unit)}</div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>`}).join(''):'<div class="empty">Hali kirim yo\'q. "Kirim" bo\'limidan chaspak qo\'shing.</div>';
+
+  // Select
+  const cur=$('s-prod').value;
+  $('s-prod').innerHTML=list.length?list.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} — ${fmM(x.left)} qoldi</option>`).join(''):'<option value="">Avval kirim qiling</option>';
+  if(cur&&P[cur])$('s-prod').value=cur;
+  $('names').innerHTML=list.map(x=>`<option value="${esc(x.name)}">`).join('');
+
+  // Ro'yxatlar
+  $('sales').innerHTML=D.sales.slice().reverse().slice(0,50).map(s=>`<div class="it"><div><div class="n">${esc(s.name)} · ${fmM(s.m)}</div><div class="s">${dt(s.t)} · ${fm(s.price)}/m · foyda <span class="${s.sum-s.cost<0?'neg':'pos'}">${fm(s.sum-s.cost)}</span>${s.note?' · '+esc(s.note):''}</div></div><div class="a">${fm(s.sum)}</div><button class="del" onclick="del('sales','${s.id}')">✕</button></div>`).join('')||'<div class="empty">Sotuv yo\'q</div>';
+  $('buys').innerHTML=D.buys.slice().reverse().map(b=>`<div class="it"><div><div class="n">${esc(b.name)} · ${fmM(b.m)}</div><div class="s">${dt(b.t)} · 1 metr = ${fm(b.sum/b.m)}</div></div><div class="a">${fm(b.sum)}</div><button class="del" onclick="del('buys','${b.id}')">✕</button></div>`).join('')||'<div class="empty">Kirim yo\'q</div>';
+  $('exps').innerHTML=D.exps.slice().reverse().map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t)}</div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
+  salePrev();buyPrev();
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// Sotuv
+function salePrev(){
+  const P=products(),x=P[$('s-prod').value],m=num($('s-m').value),pr=num($('s-p').value);
+  if(!x){$('s-prev').textContent='Avval "Kirim" bo\'limidan chaspak qo\'shing';return}
+  if(!m||!pr){$('s-prev').innerHTML=`Omborda: <b>${fmM(x.left)}</b> · Tannarx: ${fm(x.unit)}/m`;return}
+  const sum=m*pr,cost=m*x.unit,left=x.left-m;
+  $('s-prev').innerHTML=`Mijoz to'laydi: <b>${fm(sum)}</b><br>Foyda: <b class="${sum-cost<0?'neg':'pos'}">${fm(sum-cost)}</b><br>Qoladi: <b class="${left<0?'neg':''}">${fmM(left)}</b>${left<0?' ⚠️ omborda yetmaydi':''}`;
+}
+$('s-prod').onchange=()=>{const x=products()[$('s-prod').value];if(x&&x.sell)$('s-p').value=x.sell;salePrev()};
+$('s-m').oninput=$('s-p').oninput=salePrev;
+$('s-add').onclick=()=>{
+  const P=products(),x=P[$('s-prod').value],m=num($('s-m').value),pr=num($('s-p').value);
+  if(!x)return toast('Avval kirim qiling');
+  if(m<=0||pr<=0)return toast('Metr va narxni kiriting');
+  if(m>x.left+1e-9&&!confirm(`Omborda faqat ${fmM(x.left)} bor. Baribir yozilsinmi?`))return;
+  D.sales.push({id:uid(),t:Date.now(),name:x.name,m,price:pr,sum:m*pr,cost:m*x.unit,note:$('s-note').value.trim()});
+  $('s-m').value='';$('s-note').value='';save();toast('Sotuv yozildi ✅');
+};
+
+// Kirim
+function buyPrev(){
+  const m=num($('b-m').value),s=num($('b-sum').value),sell=num($('b-sell').value);
+  if(!m||!s){$('b-prev').textContent='Metr va summani kiriting';return}
+  let h=`1 metr tannarxi: <b>${fm(s/m)}</b>`;
+  if(sell)h+=`<br>Sotsangiz 1 metrdan foyda: <b class="${sell-s/m<0?'neg':'pos'}">${fm(sell-s/m)}</b><br>Hammasini sotsangiz foyda: <b>${fm(sell*m-s)}</b>`;
+  $('b-prev').innerHTML=h;
+}
+$('b-m').oninput=$('b-sum').oninput=$('b-sell').oninput=buyPrev;
+$('b-add').onclick=()=>{
+  const name=$('b-name').value.trim(),m=num($('b-m').value),sum=num($('b-sum').value),sell=num($('b-sell').value);
+  if(!name)return toast('Nomini yozing');
+  if(m<=0||sum<=0)return toast('Metr va summani kiriting');
+  D.buys.push({id:uid(),t:Date.now(),name,m,sum,sell:sell||0});
+  ['b-name','b-m','b-sum','b-sell'].forEach(i=>$(i).value='');save();toast('Kirim qilindi 📥');
+};
+
+// Harajat
+$('e-add').onclick=()=>{
+  const name=$('e-name').value.trim(),sum=num($('e-sum').value);
+  if(!name||sum<=0)return toast('Nomi va summani kiriting');
+  D.exps.push({id:uid(),t:Date.now(),name,sum});
+  $('e-name').value='';$('e-sum').value='';save();toast('Harajat qo\'shildi');
+};
+
+function del(k,id){if(confirm('O\'chirilsinmi?')){D[k]=D[k].filter(x=>x.id!==id);save()}}
+
+// Navigatsiya
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='t-'+b.dataset.t));
+  scrollTo(0,0);
+});
+document.querySelectorAll('#period button').forEach(b=>b.onclick=()=>{
+  period=b.dataset.p;document.querySelectorAll('#period button').forEach(x=>x.classList.toggle('on',x===b));render();
+});
+
+// Backup
+$('exp-json').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}));
+  a.download='chaspak-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+};
+$('imp-btn').onclick=()=>$('imp').click();
+$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.buys||!d.sales||!d.exps)throw 0;if(confirm('Hozirgi ma\'lumotlar almashtiriladi. Davom etilsinmi?')){D=d;save();toast('Tiklandi ✅')}}catch(_){toast('Fayl noto\'g\'ri')}};r.readAsText(f)};
+$('wipe').onclick=()=>{if(confirm('Hamma narsa o\'chadi! Ishonchingiz komilmi?')&&confirm('Rostdan ham?')){D={buys:[],sales:[],exps:[]};save()}};
+
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
