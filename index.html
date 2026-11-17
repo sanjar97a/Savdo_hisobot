@@ -109,6 +109,19 @@ nav button.on{color:var(--p)}
     <div class="preview" id="b-prev">Metr va summani kiriting</div>
     <button class="btn" id="b-add">➕ Kirim qilish</button>
   </div>
+  <div class="card">
+    <h2>📉 Kam chiqqan metr</h2>
+    <p style="font-size:13px;color:var(--m)">Rulon o'lchanganda aytilganidan kam chiqsa, shu yerga yozing. Bu metr ombordan ayriladi, puli zarar sifatida hisoblanadi.</p>
+    <label>Chaspak turi</label>
+    <select id="l-prod"></select>
+    <label>Necha metr kam chiqdi</label>
+    <input id="l-m" class="nf" data-dec="1" type="text" inputmode="decimal" autocomplete="off" placeholder="0">
+    <label>Izoh (ixtiyoriy)</label>
+    <input id="l-note" placeholder="Masalan: rulon 50 m kam chiqdi">
+    <div class="preview" id="l-prev">Metrni kiriting</div>
+    <button class="btn" style="background:#ea580c" id="l-add">➖ Kam chiqdi deb yozish</button>
+    <div class="list" id="losses" style="margin-top:10px"></div>
+  </div>
   <div class="card"><h2>Kirimlar tarixi</h2><div class="list" id="buys"></div></div>
 </section>
 
@@ -154,7 +167,7 @@ nav button.on{color:var(--p)}
 <script>
 const KEY='chaspak-savdo-v1';
 let D=load();
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||{buys:[],sales:[],exps:[]}}catch(e){return{buys:[],sales:[],exps:[]}}}
+function load(){let d;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}d=d||{};['buys','sales','exps','loss'].forEach(k=>d[k]=d[k]||[]);return d}
 function save(){localStorage.setItem(KEY,JSON.stringify(D));render()}
 const $=id=>document.getElementById(id);
 const num=v=>parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0;
@@ -183,9 +196,10 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTi
 // Mahsulotlar bo'yicha qoldiq va o'rtacha tannarx
 function products(){
   const p={};
-  D.buys.forEach(b=>{const k=b.name;p[k]=p[k]||{name:k,in:0,cost:0,out:0,sell:0};p[k].in+=b.m;p[k].cost+=b.sum;if(b.sell)p[k].sell=b.sell});
+  D.buys.forEach(b=>{const k=b.name;p[k]=p[k]||{name:k,in:0,cost:0,out:0,lost:0,sell:0};p[k].in+=b.m;p[k].cost+=b.sum;if(b.sell)p[k].sell=b.sell});
   D.sales.forEach(s=>{if(p[s.name])p[s.name].out+=s.m});
-  Object.values(p).forEach(x=>{x.left=x.in-x.out;x.unit=x.in?x.cost/x.in:0});
+  D.loss.forEach(l=>{if(p[l.name])p[l.name].lost+=l.m});
+  Object.values(p).forEach(x=>{x.left=x.in-x.out-x.lost;x.unit=x.in?x.cost/x.in:0});
   return p;
 }
 
@@ -206,36 +220,41 @@ function render(){
   const S=D.sales.filter(s=>inPeriod(s.t)),E=D.exps.filter(e=>inPeriod(e.t));
   const tushum=S.reduce((a,s)=>a+s.sum,0),tannarx=S.reduce((a,s)=>a+s.cost,0);
   const metr=S.reduce((a,s)=>a+s.m,0),harajat=E.reduce((a,e)=>a+e.sum,0);
-  const yalpi=tushum-tannarx,sof=yalpi-harajat;
+  const L=D.loss.filter(l=>inPeriod(l.t)),kamM=L.reduce((a,l)=>a+l.m,0),kamS=L.reduce((a,l)=>a+l.cost,0);
+  const yalpi=tushum-tannarx,sof=yalpi-harajat-kamS;
   $('stats').innerHTML=`
-    <div class="stat big"><div class="l">Sof foyda (harajatsiz)</div><div class="v">${fm(sof)}</div></div>
+    <div class="stat big"><div class="l">Sof foyda (harajat va kam chiqqani ayirilgan)</div><div class="v">${fm(sof)}</div></div>
     <div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 Harajatdan keyingi jami pul (tushum − harajat)</div><div class="v">${fm(tushum-harajat)}</div></div>
     <div class="stat"><div class="l">Tushum (kassa)</div><div class="v">${fm(tushum)}</div></div>
     <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Tannarx</div><div class="v">${fm(tannarx)}</div></div>
     <div class="stat"><div class="l">Yalpi foyda</div><div class="v ${yalpi<0?'neg':'pos'}">${fm(yalpi)}</div></div>
     <div class="stat"><div class="l">Harajatlar</div><div class="v neg">${fm(harajat)}</div></div>
-    <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>`;
+    <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>
+    <div class="stat"><div class="l">Kam chiqqan metr</div><div class="v" style="color:#ea580c">${fmM(kamM)}</div></div>
+    <div class="stat"><div class="l">Kam chiqqan zarar</div><div class="v neg">${fm(kamS)}</div></div>`;
 
   // Qoldiq
   $('stock').innerHTML=list.length?list.map(x=>{
     const pct=x.in?Math.max(0,x.left/x.in*100):0;
     return `<div class="${pct<15?'low':''}" style="padding:8px 0;border-bottom:1px solid var(--b)">
       <div style="display:flex;justify-content:space-between"><span class="n">${esc(x.name)}</span><b>${fmM(x.left)}</b></div>
-      <div class="s" style="font-size:12px;color:var(--m)">Kelgan ${fmM(x.in)} · Sotilgan ${fmM(x.out)} · Tannarx ${fm(x.unit)}/m · Qoldiq qiymati ${fm(x.left*x.unit)}</div>
+      <div class="s" style="font-size:12px;color:var(--m)">Kelgan ${fmM(x.in)} · Sotilgan ${fmM(x.out)}${x.lost?' · <span style="color:#ea580c">Kam chiqdi '+fmM(x.lost)+'</span>':''} · Tannarx ${fm(x.unit)}/m · Qoldiq qiymati ${fm(x.left*x.unit)}</div>
       <div class="bar"><i style="width:${pct}%"></i></div></div>`}).join(''):'<div class="empty">Hali kirim yo\'q. "Kirim" bo\'limidan chaspak qo\'shing.</div>';
 
   // Select
   const cur=$('s-prod').value;
   $('s-prod').innerHTML=list.length?list.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} — ${fmM(x.left)} qoldi</option>`).join(''):'<option value="">Avval kirim qiling</option>';
   if(cur&&P[cur])$('s-prod').value=cur;
+  const lc=$('l-prod').value;$('l-prod').innerHTML=$('s-prod').innerHTML;if(lc&&P[lc])$('l-prod').value=lc;
+  $('losses').innerHTML=D.loss.slice().reverse().map(l=>`<div class="it"><div><div class="n">${esc(l.name)} · ${fmM(l.m)} kam</div><div class="s">${dt(l.t)}${l.note?' · '+esc(l.note):''}</div></div><div class="a neg">${fm(l.cost)}</div><button class="del" onclick="del('loss','${l.id}')">✕</button></div>`).join('');
   $('names').innerHTML=list.map(x=>`<option value="${esc(x.name)}">`).join('');
 
   // Ro'yxatlar
   $('sales').innerHTML=D.sales.slice().reverse().slice(0,50).map(s=>`<div class="it"><div><div class="n">${esc(s.name)} · ${fmM(s.m)}</div><div class="s">${dt(s.t)} · ${fm(s.price)}/m · foyda <span class="${s.sum-s.cost<0?'neg':'pos'}">${fm(s.sum-s.cost)}</span>${s.note?' · '+esc(s.note):''}</div></div><div class="a">${fm(s.sum)}</div><button class="del" onclick="del('sales','${s.id}')">✕</button></div>`).join('')||'<div class="empty">Sotuv yo\'q</div>';
   $('buys').innerHTML=D.buys.slice().reverse().map(b=>`<div class="it"><div><div class="n">${esc(b.name)} · ${fmM(b.m)}</div><div class="s">${dt(b.t)} · 1 metr = ${fm(b.sum/b.m)}</div></div><div class="a">${fm(b.sum)}</div><button class="del" onclick="del('buys','${b.id}')">✕</button></div>`).join('')||'<div class="empty">Kirim yo\'q</div>';
   $('exps').innerHTML=D.exps.slice().reverse().map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t)}</div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
-  salePrev();buyPrev();
+  salePrev();buyPrev();lossPrev();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
@@ -275,6 +294,23 @@ $('b-add').onclick=()=>{
   ['b-name','b-m','b-sum','b-sell'].forEach(i=>$(i).value='');save();toast('Kirim qilindi 📥');
 };
 
+// Kam chiqdi
+function lossPrev(){
+  const x=products()[$('l-prod').value],m=num($('l-m').value);
+  if(!x){$('l-prev').textContent='Avval kirim qiling';return}
+  if(!m){$('l-prev').innerHTML=`Omborda hozir: <b>${fmM(x.left)}</b>`;return}
+  $('l-prev').innerHTML=`Zarar: <b class="neg">${fm(m*x.unit)}</b><br>Omborda qoladi: <b>${fmM(x.left-m)}</b>`;
+}
+$('l-prod').onchange=$('l-m').oninput=lossPrev;
+$('l-add').onclick=()=>{
+  const x=products()[$('l-prod').value],m=num($('l-m').value);
+  if(!x)return toast('Avval kirim qiling');
+  if(m<=0)return toast('Metrni kiriting');
+  if(m>x.left+1e-9&&!confirm(`Omborda ${fmM(x.left)} qolgan. Baribir yozilsinmi?`))return;
+  D.loss.push({id:uid(),t:Date.now(),name:x.name,m,cost:m*x.unit,note:$('l-note').value.trim()});
+  $('l-m').value='';$('l-note').value='';save();toast('Kam chiqqani yozildi');
+};
+
 // Harajat
 $('e-add').onclick=()=>{
   const name=$('e-name').value.trim(),sum=num($('e-sum').value);
@@ -302,8 +338,8 @@ $('exp-json').onclick=()=>{
   a.download='chaspak-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
 };
 $('imp-btn').onclick=()=>$('imp').click();
-$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.buys||!d.sales||!d.exps)throw 0;if(confirm('Hozirgi ma\'lumotlar almashtiriladi. Davom etilsinmi?')){D=d;save();toast('Tiklandi ✅')}}catch(_){toast('Fayl noto\'g\'ri')}};r.readAsText(f)};
-$('wipe').onclick=()=>{if(confirm('Hamma narsa o\'chadi! Ishonchingiz komilmi?')&&confirm('Rostdan ham?')){D={buys:[],sales:[],exps:[]};save()}};
+$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.buys||!d.sales||!d.exps)throw 0;d.loss=d.loss||[];if(confirm('Hozirgi ma\'lumotlar almashtiriladi. Davom etilsinmi?')){D=d;save();toast('Tiklandi ✅')}}catch(_){toast('Fayl noto\'g\'ri')}};r.readAsText(f)};
+$('wipe').onclick=()=>{if(confirm('Hamma narsa o\'chadi! Ishonchingiz komilmi?')&&confirm('Rostdan ham?')){D={buys:[],sales:[],exps:[],loss:[]};save()}};
 
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
