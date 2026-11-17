@@ -68,6 +68,7 @@ nav button.on{color:var(--p)}
     <button data-p="month">Shu oy</button>
     <button data-p="all">Hammasi</button>
   </div>
+  <div class="card" id="cash"></div>
   <div class="grid" id="stats"></div>
   <div class="card" style="margin-top:12px">
     <h2>📦 Ombordagi qoldiq</h2>
@@ -224,7 +225,7 @@ function render(){
   const yalpi=tushum-tannarx,sof=yalpi-harajat-kamS;
   const row=(l,v,c='',bold)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;${bold?'border-top:1px solid var(--b);font-weight:700;font-size:16px':'font-size:15px'}"><span>${l}</span><span class="${c}" style="white-space:nowrap;padding-left:8px">${v}</span></div>`;
   $('stats').innerHTML=`
-    <div class="stat big"><div class="l">💰 Sof foyda — qo'lingizda qoladigani</div><div class="v">${fm(sof)}</div></div>
+    <div class="stat big"><div class="l">💰 Sof foyda (tanlangan davr uchun)</div><div class="v">${fm(sof)}</div></div>
     <div class="card" style="grid-column:1/-1;margin:0">
       <h2>🧮 Hisob-kitob</h2>
       ${row('Tushum (mijozlardan olingan pul)',fm(tushum))}
@@ -236,6 +237,17 @@ function render(){
     </div>
     <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Sotuvlar soni</div><div class="v">${S.length} ta</div></div>`;
+  // Kassa: davrga bog'liq emas, boshidan hozirgacha
+  const allT=D.sales.reduce((a,s)=>a+s.sum,0),allE=D.exps.reduce((a,e)=>a+e.sum,0),allB=D.buys.reduce((a,b)=>a+b.sum,0);
+  const kassa=allT-allE,qaytdi=kassa-allB,omborQ=list.reduce((a,x)=>a+Math.max(0,x.left)*x.unit,0);
+  $('cash').innerHTML=`<h2>💵 Qo'limdagi naqd pul</h2>
+    <div style="font-size:12px;color:var(--m);margin-bottom:6px">Boshidan hozirgacha (yuqoridagi Bugun/7 kun tanloviga bog'liq emas)</div>
+    ${row('Sotuvdan tushgan pul',fm(allT))}
+    ${row('− Harajatlar',fm(allE),'neg')}
+    ${row('= Qo\'limdagi naqd pul',fm(kassa),kassa<0?'neg':'pos',1)}
+    <div class="preview" style="font-size:13px">Chaspak sotib olishga to'lagan pulingiz: <b>${fm(allB)}</b><br>
+    ${qaytdi>=0?`Bu pul to'liq qaytdi, ustiga <b class="pos">${fm(qaytdi)}</b> ortiqcha`:`Shundan hali qaytmagani: <b class="neg">${fm(-qaytdi)}</b>`}<br>
+    Omborda qolgan chaspak (tannarxda): <b>${fm(omborQ)}</b></div>`;
 
   // Qoldiq
   $('stock').innerHTML=list.length?list.map(x=>{
