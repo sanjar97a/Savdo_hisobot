@@ -54,6 +54,13 @@ nav button.on{color:var(--p)}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:9}
 .toast.on{opacity:1}
 .row{display:flex;gap:8px}.row>*{flex:1}
+table.st{width:100%;border-collapse:collapse;font-size:15px}
+table.st th{font-size:12px;color:var(--m);font-weight:600;text-align:right;padding:6px 4px;border-bottom:2px solid var(--b)}
+table.st th:first-child,table.st td:first-child{text-align:left}
+table.st td{text-align:right;padding:10px 4px;border-bottom:1px solid var(--b);white-space:nowrap}
+table.st td:first-child{white-space:normal;font-weight:600}
+table.st tr.tot td{font-weight:700;border-top:2px solid var(--b);border-bottom:0}
+table.st .q{font-weight:700;color:var(--p)}
 </style>
 </head>
 <body>
@@ -62,18 +69,22 @@ nav button.on{color:var(--p)}
 <main>
 <!-- ASOSIY -->
 <section class="tab on" id="t-home">
+  <div class="card">
+    <h2>📦 Chaspaklar</h2>
+    <div id="stock"></div>
+  </div>
+</section>
+
+<!-- HISOBOT -->
+<section class="tab" id="t-rep">
+  <div class="card" id="cash"></div>
   <div class="chips" id="period">
     <button data-p="day" class="on">Bugun</button>
     <button data-p="week">7 kun</button>
     <button data-p="month">Shu oy</button>
     <button data-p="all">Hammasi</button>
   </div>
-  <div class="card" id="cash"></div>
   <div class="grid" id="stats"></div>
-  <div class="card" style="margin-top:12px">
-    <h2>📦 Ombordagi qoldiq</h2>
-    <div class="list" id="stock"></div>
-  </div>
 </section>
 
 <!-- SOTUV -->
@@ -157,10 +168,11 @@ nav button.on{color:var(--p)}
 </main>
 
 <nav>
-  <button data-t="home" class="on"><b>📊</b>Asosiy</button>
+  <button data-t="home" class="on"><b>📦</b>Asosiy</button>
   <button data-t="sale"><b>🛒</b>Sotuv</button>
   <button data-t="buy"><b>📥</b>Kirim</button>
   <button data-t="exp"><b>💸</b>Harajat</button>
+  <button data-t="rep"><b>📊</b>Hisobot</button>
   <button data-t="set"><b>⚙️</b>Sozlama</button>
 </nav>
 <div class="toast" id="toast"></div>
@@ -241,7 +253,7 @@ function render(){
   const allT=D.sales.reduce((a,s)=>a+s.sum,0),allE=D.exps.reduce((a,e)=>a+e.sum,0),allB=D.buys.reduce((a,b)=>a+b.sum,0);
   const kassa=allT-allE,qaytdi=kassa-allB,omborQ=list.reduce((a,x)=>a+Math.max(0,x.left)*x.unit,0);
   $('cash').innerHTML=`<h2>💵 Qo'limdagi naqd pul</h2>
-    <div style="font-size:12px;color:var(--m);margin-bottom:6px">Boshidan hozirgacha (yuqoridagi Bugun/7 kun tanloviga bog'liq emas)</div>
+    <div style="font-size:12px;color:var(--m);margin-bottom:6px">Boshidan hozirgacha (pastdagi Bugun/7 kun tanloviga bog'liq emas)</div>
     ${row('Sotuvdan tushgan pul',fm(allT))}
     ${row('− Harajatlar',fm(allE),'neg')}
     ${row('= Qo\'limdagi naqd pul',fm(kassa),kassa<0?'neg':'pos',1)}
@@ -250,12 +262,13 @@ function render(){
     Omborda qolgan chaspak (tannarxda): <b>${fm(omborQ)}</b></div>`;
 
   // Qoldiq
-  $('stock').innerHTML=list.length?list.map(x=>{
-    const pct=x.in?Math.max(0,x.left/x.in*100):0;
-    return `<div class="${pct<15?'low':''}" style="padding:8px 0;border-bottom:1px solid var(--b)">
-      <div style="display:flex;justify-content:space-between"><span class="n">${esc(x.name)}</span><b>${fmM(x.left)}</b></div>
-      <div class="s" style="font-size:12px;color:var(--m)">Kelgan ${fmM(x.in)} · Sotilgan ${fmM(x.out)}${x.lost?' · <span style="color:#ea580c">Kam chiqdi '+fmM(x.lost)+'</span>':''} · Tannarx ${fm(x.unit)}/m · Qoldiq qiymati ${fm(x.left*x.unit)}</div>
-      <div class="bar"><i style="width:${pct}%"></i></div></div>`}).join(''):'<div class="empty">Hali kirim yo\'q. "Kirim" bo\'limidan chaspak qo\'shing.</div>';
+  const T=list.reduce((a,x)=>({in:a.in+x.in,out:a.out+x.out,lost:a.lost+x.lost,left:a.left+x.left}),{in:0,out:0,lost:0,left:0});
+  const anyLost=T.lost>0;
+  $('stock').innerHTML=list.length?`<table class="st">
+    <tr><th>Kimdan</th><th>Olindi</th><th>Sotildi</th>${anyLost?'<th>Kam</th>':''}<th>Qoldi</th></tr>
+    ${list.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmM(x.in)}</td><td>${fmM(x.out)}</td>${anyLost?`<td style="color:#ea580c">${x.lost?fmM(x.lost):'—'}</td>`:''}<td class="q ${x.left<0?'neg':''}">${fmM(x.left)}</td></tr>`).join('')}
+    ${list.length>1?`<tr class="tot"><td>Jami</td><td>${fmM(T.in)}</td><td>${fmM(T.out)}</td>${anyLost?`<td style="color:#ea580c">${fmM(T.lost)}</td>`:''}<td class="q">${fmM(T.left)}</td></tr>`:''}
+  </table>`:'<div class="empty">Hali chaspak yo\'q. "Kirim" bo\'limidan qo\'shing.</div>';
 
   // Select
   const cur=$('s-prod').value;
