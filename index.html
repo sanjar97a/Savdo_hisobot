@@ -82,8 +82,8 @@ nav button.on{color:var(--p)}
     <label>Chaspak turi</label>
     <select id="s-prod"></select>
     <div class="row">
-      <div><label>Necha metr</label><input id="s-m" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
-      <div><label>1 metr narxi (so'm)</label><input id="s-p" type="number" inputmode="numeric" placeholder="0"></div>
+      <div><label>Necha metr</label><input id="s-m" class="nf" data-dec="1" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+      <div><label>1 metr narxi (so'm)</label><input id="s-p" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
     </div>
     <label>Izoh (ixtiyoriy)</label>
     <input id="s-note" placeholder="Mijoz, telefon...">
@@ -101,11 +101,11 @@ nav button.on{color:var(--p)}
     <input id="b-name" list="names" placeholder="Masalan: Shaffof 50sm">
     <datalist id="names"></datalist>
     <div class="row">
-      <div><label>Necha metr</label><input id="b-m" type="number" inputmode="decimal" step="0.01" placeholder="0"></div>
-      <div><label>Jami to'lagan pulim</label><input id="b-sum" type="number" inputmode="numeric" placeholder="0"></div>
+      <div><label>Necha metr</label><input id="b-m" class="nf" data-dec="1" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+      <div><label>Jami to'lagan pulim</label><input id="b-sum" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
     </div>
     <label>Sotish narxi, 1 metr (ixtiyoriy)</label>
-    <input id="b-sell" type="number" inputmode="numeric" placeholder="Sotuvda avtomatik chiqadi">
+    <input id="b-sell" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="Sotuvda avtomatik chiqadi">
     <div class="preview" id="b-prev">Metr va summani kiriting</div>
     <button class="btn" id="b-add">➕ Kirim qilish</button>
   </div>
@@ -120,7 +120,7 @@ nav button.on{color:var(--p)}
     <input id="e-name" list="enames" placeholder="Ijara, yo'l kira, ovqat...">
     <datalist id="enames"><option>Ijara</option><option>Yo'l kira</option><option>Ovqat</option><option>Svet</option><option>Telefon</option><option>Qaychi/asbob</option></datalist>
     <label>Summa (so'm)</label>
-    <input id="e-sum" type="number" inputmode="numeric" placeholder="0">
+    <input id="e-sum" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
     <button class="btn" id="e-add">➕ Harajat qo'shish</button>
   </div>
   <div class="card"><h2>Harajatlar</h2><div class="list" id="exps"></div></div>
@@ -157,7 +157,23 @@ let D=load();
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||{buys:[],sales:[],exps:[]}}catch(e){return{buys:[],sales:[],exps:[]}}}
 function save(){localStorage.setItem(KEY,JSON.stringify(D));render()}
 const $=id=>document.getElementById(id);
-const num=v=>parseFloat(String(v).replace(',','.'))||0;
+const num=v=>parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0;
+// Yozayotganda minglarni probel bilan ajratish: 1250000 -> 1 250 000
+function fmtStr(raw,dec){
+  let v=String(raw).replace(/[^\d.,]/g,'').replace(/,/g,'.');
+  let k=v.indexOf('.'),i=k<0?v:v.slice(0,k),d=k<0?null:v.slice(k+1).replace(/\./g,'');
+  i=i.replace(/^0+(?=\d)/,'').replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  if(dec&&d!==null)return (i||'0')+','+d.slice(0,2);
+  return i;
+}
+function fmtInput(el){
+  const fromEnd=el.value.length-(el.selectionStart??el.value.length);
+  el.value=fmtStr(el.value,el.dataset.dec);
+  const p=Math.max(0,el.value.length-fromEnd);
+  try{el.setSelectionRange(p,p)}catch(_){}
+}
+const setNum=(el,n)=>{el.value=n?fmtStr(String(n),el.dataset.dec):''};
+document.querySelectorAll('.nf').forEach(el=>el.addEventListener('input',()=>fmtInput(el)));
 const fm=n=>Math.round(n).toLocaleString('ru-RU').replace(/,/g,' ')+" so'm";
 const fmM=n=>(Math.round(n*100)/100).toLocaleString('ru-RU')+' m';
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -230,7 +246,7 @@ function salePrev(){
   const sum=m*pr,cost=m*x.unit,left=x.left-m;
   $('s-prev').innerHTML=`Mijoz to'laydi: <b>${fm(sum)}</b><br>Foyda: <b class="${sum-cost<0?'neg':'pos'}">${fm(sum-cost)}</b><br>Qoladi: <b class="${left<0?'neg':''}">${fmM(left)}</b>${left<0?' ⚠️ omborda yetmaydi':''}`;
 }
-$('s-prod').onchange=()=>{const x=products()[$('s-prod').value];if(x&&x.sell)$('s-p').value=x.sell;salePrev()};
+$('s-prod').onchange=()=>{const x=products()[$('s-prod').value];if(x&&x.sell)setNum($('s-p'),x.sell);salePrev()};
 $('s-m').oninput=$('s-p').oninput=salePrev;
 $('s-add').onclick=()=>{
   const P=products(),x=P[$('s-prod').value],m=num($('s-m').value),pr=num($('s-p').value);
