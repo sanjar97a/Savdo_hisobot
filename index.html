@@ -279,6 +279,18 @@ function inPeriod(t){
   if(period==='month')return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();
 }
 
+// Qo'ldagi pul: boshidan berilgan vaqtgacha (davrga bo'linmaydi)
+function cashUntil(end){
+  const f=r=>r.t<=end;
+  const tushum=D.sales.filter(f).reduce((a,s)=>a+s.sum,0);
+  const har=D.exps.filter(e=>f(e)&&!e.notCash).reduce((a,e)=>a+e.sum,0);
+  const boshqa=D.exps.filter(e=>f(e)&&e.notCash).reduce((a,e)=>a+e.sum,0);
+  const kir=D.buys.filter(b=>f(b)&&b.fromCash).reduce((a,b)=>a+b.sum,0);
+  return{tushum,har,boshqa,kir,qolda:tushum-har-kir};
+}
+const cashHtml=(title,c,sub)=>`<div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 ${title}</div><div class="v">${fm(c.qolda)}</div>
+  <div style="font-size:13px;color:#dbeafe;margin-top:6px;line-height:1.5">${sub?sub+'<br>':''}Jami sotuv ${fm(c.tushum)}<br>− Harajat (savdo pulidan) ${fm(c.har)}${c.kir?`<br>− Savdo pulidan olingan chaspak ${fm(c.kir)}`:''}${c.boshqa?`<br><span style="opacity:.8">Savdo pulidan to'lanmagan harajat: ${fm(c.boshqa)} (ayirilmadi)</span>`:''}</div></div>`;
+
 // ===== KUNLIK =====
 const dKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const kParts=k=>k.split('-').map(Number);
@@ -296,8 +308,7 @@ function renderDay(){
   const harajatK=E.filter(e=>!e.notCash).reduce((a,e)=>a+e.sum,0),boshqa=harajat-harajatK;
   const qolda=tushum-harajatK-kirimK,foyda=tushum-cost-harajat-kam;
   $('d-stats').innerHTML=`
-    <div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 Shu kuni qo'lga qolgan pul</div><div class="v">${fm(qolda)}</div>
-      <div style="font-size:13px;color:#dbeafe;margin-top:6px;line-height:1.5">Sotuv ${fm(tushum)}<br>− Harajat (savdo pulidan) ${fm(harajatK)}${kirimK?`<br>− Savdo pulidan olingan chaspak ${fm(kirimK)}`:''}${boshqa?`<br><span style="opacity:.8">Savdo pulidan to'lanmagan harajat: ${fm(boshqa)} (ayirilmadi)</span>`:''}</div></div>
+    ${cashHtml("Kun oxirida qo'ldagi pul",cashUntil(end),`Shu kuni: ${qolda>=0?'+':''}${fm(qolda)}`)}
     <div class="stat"><div class="l">Sotildi</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Sotuvdan pul</div><div class="v">${fm(tushum)}</div></div>
     <div class="stat"><div class="l">Harajat</div><div class="v neg">${fm(harajat)}</div></div>
@@ -342,8 +353,7 @@ function render(){
   const yalpi=tushum-tannarx,sof=yalpi-harajat-kamS;
   $('stats').innerHTML=`
     <div class="stat big"><div class="l">Sof foyda (harajat va kam chiqqani ayirilgan)</div><div class="v">${fm(sof)}</div></div>
-    <div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 Qo'limdagi pul</div><div class="v">${fm(qolda)}</div>
-      <div style="font-size:13px;color:#dbeafe;margin-top:6px;line-height:1.5">Tushum ${fm(tushum)}<br>− Harajat (savdo pulidan) ${fm(harajatK)}${kirimK?`<br>− Savdo pulidan olingan chaspak ${fm(kirimK)}`:''}${boshqa?`<br><span style="opacity:.8">Savdo pulidan to'lanmagan harajat: ${fm(boshqa)} (ayirilmadi)</span>`:''}</div></div>
+    ${cashHtml("Qo'limdagi pul",cashUntil(Date.now()),'Boshidan hozirgacha (Bugun/7 kun tanloviga bog\'liq emas)')}
     <div class="stat"><div class="l">Tushum (kassa)</div><div class="v">${fm(tushum)}</div></div>
     <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Tannarx</div><div class="v">${fm(tannarx)}</div></div>
