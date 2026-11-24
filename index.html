@@ -212,7 +212,7 @@ table.st tr.tot td{font-weight:700;border-top:2px solid var(--b);border-bottom:0
 <script>
 const KEY='chaspak-savdo-v1';
 let D=load();
-function load(){let d;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}d=d||{};['buys','sales','exps','loss'].forEach(k=>d[k]=d[k]||[]);return d}
+function load(){let d;try{d=JSON.parse(localStorage.getItem(KEY))}catch(e){}d=d||{};['buys','sales','exps','loss','wd'].forEach(k=>d[k]=d[k]||[]);return d}
 function save(){localStorage.setItem(KEY,JSON.stringify(D));render()}
 const $=id=>document.getElementById(id);
 const num=v=>parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0;
@@ -281,15 +281,21 @@ function inPeriod(t){
 
 // Qo'ldagi pul: boshidan berilgan vaqtgacha (davrga bo'linmaydi)
 function cashUntil(end){
-  const f=r=>r.t<=end;
-  const tushum=D.sales.filter(f).reduce((a,s)=>a+s.sum,0);
-  const har=D.exps.filter(e=>f(e)&&!e.notCash).reduce((a,e)=>a+e.sum,0);
-  const boshqa=D.exps.filter(e=>f(e)&&e.notCash).reduce((a,e)=>a+e.sum,0);
-  const kir=D.buys.filter(b=>f(b)&&b.fromCash).reduce((a,b)=>a+b.sum,0);
-  return{tushum,har,boshqa,kir,qolda:tushum-har-kir};
+  const f=r=>r.t<=end,sum=(arr,g)=>arr.filter(r=>f(r)&&(!g||g(r))).reduce((a,r)=>a+r.sum,0);
+  const tushum=sum(D.sales),har=sum(D.exps,e=>!e.notCash),boshqa=sum(D.exps,e=>e.notCash),kir=sum(D.buys,b=>b.fromCash),ol=sum(D.wd);
+  return{tushum,har,boshqa,kir,ol,qolda:tushum-har-kir-ol};
 }
-const cashHtml=(title,c,sub)=>`<div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 ${title}</div><div class="v">${fm(c.qolda)}</div>
-  <div style="font-size:13px;color:#dbeafe;margin-top:6px;line-height:1.5">${sub?sub+'<br>':''}Jami sotuv ${fm(c.tushum)}<br>− Harajat (savdo pulidan) ${fm(c.har)}${c.kir?`<br>− Savdo pulidan olingan chaspak ${fm(c.kir)}`:''}${c.boshqa?`<br><span style="opacity:.8">Savdo pulidan to'lanmagan harajat: ${fm(c.boshqa)} (ayirilmadi)</span>`:''}</div></div>`;
+// Pul olish: kassadan olib ketilgan pul
+function takeMoney(k){
+  const today=dKey(Date.now()),day=k||today,end=day===today?Date.now():dEnd(day);
+  const bor=cashUntil(end).qolda;
+  const v=prompt(`Kassada ${fm(bor)} bor.\nQancha pul oldingiz?`,bor>0?fmtStr(String(Math.round(bor))):'');
+  if(v===null)return;const n=num(v);if(n<=0)return toast('Summani kiriting');
+  const[y,m,d]=kParts(day);
+  D.wd.push({id:uid(),t:day===today?Date.now():new Date(y,m-1,d,20).getTime(),sum:n});
+  save();toast('Olindi ✅');
+}
+const bigBtn=(txt,on)=>`<button onclick="${on}" style="margin-top:10px;width:100%;background:#fff;color:#1e40af;padding:12px">${txt}</button>`;
 
 // ===== KUNLIK =====
 const dKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -308,7 +314,15 @@ function renderDay(){
   const harajatK=E.filter(e=>!e.notCash).reduce((a,e)=>a+e.sum,0),boshqa=harajat-harajatK;
   const qolda=tushum-harajatK-kirimK,foyda=tushum-cost-harajat-kam;
   $('d-stats').innerHTML=`
-    ${cashHtml("Kun oxirida qo'ldagi pul",cashUntil(end),`Shu kuni: ${qolda>=0?'+':''}${fm(qolda)}`)}
+    ${(()=>{const[y,m,d]=kParts(dayK),st=new Date(y,m-1,d).getTime()-1,bosh=cashUntil(st).qolda,c=cashUntil(end),
+      W=D.wd.filter(on),ol=W.reduce((a,w)=>a+w.sum,0),hK=E.filter(e=>!e.notCash).reduce((a,e)=>a+e.sum,0);
+      const r=(l,v,b)=>`<div style="display:flex;justify-content:space-between;padding:3px 0;${b?'border-top:1px solid #ffffff55;margin-top:4px;padding-top:6px;font-weight:700':''}"><span>${l}</span><span>${v}</span></div>`;
+      return `<div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 Kun oxirida kassada</div><div class="v">${fm(c.qolda)}</div>
+      <div style="font-size:14px;color:#dbeafe;margin-top:8px">
+        ${r('Kun boshida',fm(bosh))}${r('+ Sotuv',fm(tushum))}${r('− Harajat (savdo pulidan)',fm(hK))}${kirimK?r('− Yangi chaspak',fm(kirimK)):''}${r('− Olindi',fm(ol))}${r('= Kun oxirida',fm(c.qolda),1)}
+      </div>
+      ${W.map(w=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#dbeafe;margin-top:6px">💰 ${dt(w.t).slice(-5)} olindi: ${fm(w.sum)} <button class="del" style="color:#fecaca" onclick="del('wd','${w.id}')">✕</button></div>`).join('')}
+      ${bigBtn('💰 Shu kuni pul oldim',`takeMoney('${dayK}')`)}</div>`})()}
     <div class="stat"><div class="l">Sotildi</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Sotuvdan pul</div><div class="v">${fm(tushum)}</div></div>
     <div class="stat"><div class="l">Harajat</div><div class="v neg">${fm(harajat)}</div></div>
@@ -353,7 +367,10 @@ function render(){
   const yalpi=tushum-tannarx,sof=yalpi-harajat-kamS;
   $('stats').innerHTML=`
     <div class="stat big"><div class="l">Sof foyda (harajat va kam chiqqani ayirilgan)</div><div class="v">${fm(sof)}</div></div>
-    ${cashHtml("Qo'limdagi pul",cashUntil(Date.now()),'Boshidan hozirgacha (Bugun/7 kun tanloviga bog\'liq emas)')}
+    ${(()=>{const c=cashUntil(Date.now()),last=D.wd.slice().sort((a,b)=>b.t-a.t)[0];
+      return `<div class="stat big" style="background:#1e40af"><div class="l" style="color:#dbeafe">💵 Kassada turgan pul (hali olinmagan)</div><div class="v">${fm(c.qolda)}</div>
+      <div style="font-size:13px;color:#dbeafe;margin-top:6px;line-height:1.5">Jami sotuv ${fm(c.tushum)}<br>− Harajat (savdo pulidan) ${fm(c.har)}<br>− Savdo pulidan olingan chaspak ${fm(c.kir)}<br>− Olib ketilgan pul ${fm(c.ol)}${last?`<br><span style="opacity:.85">Oxirgi marta: ${dt(last.t)}, ${fm(last.sum)}</span>`:''}</div>
+      ${bigBtn('💰 Pul oldim',"takeMoney()")}</div>`})()}
     <div class="stat"><div class="l">Tushum (kassa)</div><div class="v">${fm(tushum)}</div></div>
     <div class="stat"><div class="l">Sotilgan metr</div><div class="v">${fmM(metr)}</div></div>
     <div class="stat"><div class="l">Tannarx</div><div class="v">${fm(tannarx)}</div></div>
@@ -481,8 +498,8 @@ $('exp-json').onclick=()=>{
   a.download='chaspak-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();
 };
 $('imp-btn').onclick=()=>$('imp').click();
-$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.buys||!d.sales||!d.exps)throw 0;d.loss=d.loss||[];if(confirm('Hozirgi ma\'lumotlar almashtiriladi. Davom etilsinmi?')){D=d;save();toast('Tiklandi ✅')}}catch(_){toast('Fayl noto\'g\'ri')}};r.readAsText(f)};
-$('wipe').onclick=()=>{if(confirm('Hamma narsa o\'chadi! Ishonchingiz komilmi?')&&confirm('Rostdan ham?')){D={buys:[],sales:[],exps:[],loss:[]};save()}};
+$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.buys||!d.sales||!d.exps)throw 0;d.loss=d.loss||[];d.wd=d.wd||[];if(confirm('Hozirgi ma\'lumotlar almashtiriladi. Davom etilsinmi?')){D=d;save();toast('Tiklandi ✅')}}catch(_){toast('Fayl noto\'g\'ri')}};r.readAsText(f)};
+$('wipe').onclick=()=>{if(confirm('Hamma narsa o\'chadi! Ishonchingiz komilmi?')&&confirm('Rostdan ham?')){D={buys:[],sales:[],exps:[],loss:[],wd:[]};save()}};
 
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
