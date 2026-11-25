@@ -105,9 +105,8 @@ table.st tr.tot td{font-weight:700;border-top:2px solid var(--b);border-bottom:0
       <div><label>Nima uchun</label><input id="d-e-name" list="enames" placeholder="Ovqat, yo'l kira..."></div>
       <div><label>Summa</label><input id="d-e-sum" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
     </div>
-    <label style="display:flex;gap:10px;align-items:center;color:var(--t);font-size:15px;margin-top:12px">
-      <input type="checkbox" id="d-e-cash" checked style="width:22px;height:22px;flex:none"> 💵 Savdo pulidan to'ladim
-    </label>
+    <label>Kim to'ladi?</label>
+    <select id="d-e-payer" class="payer"></select>
     <button class="btn" id="d-e-add">➕ Shu kunga harajat qo'shish</button>
   </div>
   <div class="card"><h2>📥 Shu kungi kirimlar</h2><div class="list" id="d-buys"></div></div>
@@ -169,15 +168,21 @@ table.st tr.tot td{font-weight:700;border-top:2px solid var(--b);border-bottom:0
 <!-- HARAJAT -->
 <section class="tab" id="t-exp">
   <div class="card">
+    <h2>👥 Harajat taqsimoti (2 kishiga)</h2>
+    <div class="chips" id="sp-period">
+      <button data-p="day">Bugun</button><button data-p="week">7 kun</button><button data-p="month">Shu oy</button><button data-p="all" class="on">Hammasi</button>
+    </div>
+    <div id="split"></div>
+  </div>
+  <div class="card">
     <h2>💸 Harajat qo'shish</h2>
     <label>Nima uchun</label>
     <input id="e-name" list="enames" placeholder="Ijara, yo'l kira, ovqat...">
     <datalist id="enames"><option>Ijara</option><option>Yo'l kira</option><option>Ovqat</option><option>Svet</option><option>Telefon</option><option>Qaychi/asbob</option></datalist>
     <label>Summa (so'm)</label>
     <input id="e-sum" class="nf" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
-    <label style="display:flex;gap:10px;align-items:center;color:var(--t);font-size:15px;margin-top:12px">
-      <input type="checkbox" id="e-cash" checked style="width:22px;height:22px;flex:none"> 💵 Savdo pulidan to'ladim
-    </label>
+    <label>Kim to'ladi?</label>
+    <select id="e-payer" class="payer"></select>
     <button class="btn" id="e-add">➕ Harajat qo'shish</button>
   </div>
   <div class="card"><h2>Harajatlar</h2><div class="list" id="exps"></div></div>
@@ -191,6 +196,12 @@ table.st tr.tot td{font-weight:700;border-top:2px solid var(--b);border-bottom:0
     <button class="btn" id="exp-json">⬇️ Faylga saqlash (backup)</button>
     <button class="btn btn2" id="imp-btn">⬆️ Fayldan tiklash</button>
     <input type="file" id="imp" accept=".json" hidden>
+  </div>
+  <div class="card">
+    <h2>👥 Sheriklar</h2>
+    <label>1-kishi</label><input id="p0">
+    <label>2-kishi</label><input id="p1">
+    <button class="btn" id="p-save">Saqlash</button>
   </div>
   <div class="card">
     <h2>⚠️ Tozalash</h2>
@@ -297,6 +308,41 @@ function takeMoney(k){
 }
 const bigBtn=(txt,on)=>`<button onclick="${on}" style="margin-top:10px;width:100%;background:#fff;color:#1e40af;padding:12px">${txt}</button>`;
 
+// ===== SHERIKLAR =====
+const people=()=>D.people||['Sanjarbek','Baxtiyor aka'];
+const payerOf=e=>e.payer&&(e.payer==='kassa'||people().includes(e.payer))?e.payer:(e.notCash?'?':'kassa');
+const payerLabel=p=>p==='kassa'?'💵 Kassadan (savdo pulidan)':p==='?'?'❓ Kim to\'lagani belgilanmagan':'👤 '+esc(p)+' o\'z pulidan';
+function fillPayers(){
+  const o=`<option value="kassa">💵 Kassadan (savdo pulidan)</option>`+people().map(p=>`<option value="${esc(p)}">👤 ${esc(p)} o'z pulidan</option>`).join('');
+  document.querySelectorAll('select.payer').forEach(el=>{const v=el.value;el.innerHTML=o;el.value=v&&[...el.options].some(x=>x.value===v)?v:'kassa'});
+  $('p0').value=people()[0];$('p1').value=people()[1];
+}
+$('p-save').onclick=()=>{
+  const a=$('p0').value.trim(),b=$('p1').value.trim();if(!a||!b||a===b)return toast('Ikki xil ism kiriting');
+  const old=people();D.exps.forEach(e=>{if(e.payer===old[0])e.payer=a;else if(e.payer===old[1])e.payer=b});
+  D.people=[a,b];save();toast('Saqlandi');
+};
+let spP='all';
+document.querySelectorAll('#sp-period button').forEach(b=>b.onclick=()=>{spP=b.dataset.p;document.querySelectorAll('#sp-period button').forEach(x=>x.classList.toggle('on',x===b));renderSplit()});
+function renderSplit(){
+  const save_p=period;period=spP;const E=D.exps.filter(e=>inPeriod(e.t));period=save_p;
+  const[A,B]=people(),sum=f=>E.filter(f).reduce((a,e)=>a+e.sum,0);
+  const kas=sum(e=>payerOf(e)==='kassa'),pa=sum(e=>payerOf(e)===A),pb=sum(e=>payerOf(e)===B),nb=sum(e=>payerOf(e)==='?');
+  const jami=kas+pa+pb+nb,ulush=jami/2,farq=(pa-pb)/2;
+  const r=(l,v,c='',b)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;${b?'border-top:1px solid var(--b);font-weight:700':''}"><span>${l}</span><span class="${c}" style="white-space:nowrap;padding-left:8px">${v}</span></div>`;
+  $('split').innerHTML=`
+    ${r('💵 Kassadan (savdo pulidan)',fm(kas))}
+    ${r('👤 '+esc(A)+' o\'z pulidan',fm(pa))}
+    ${r('👤 '+esc(B)+' o\'z pulidan',fm(pb))}
+    ${nb?r('❓ Kim to\'lagani belgilanmagan',fm(nb),'neg'):''}
+    ${r('Jami harajat',fm(jami),'',1)}
+    ${r('Har biriga tushadi (½)',fm(ulush),'',1)}
+    <div class="preview" style="font-size:15px">${Math.abs(farq)<1?'✅ Hisob teng, hech kim hech kimga qarzdor emas.'
+      :`<b>${esc(farq>0?B:A)}</b> → <b>${esc(farq>0?A:B)}</b>ga <b class="neg">${fm(Math.abs(farq))}</b> berishi kerak`}
+      <div style="font-size:12px;color:var(--m);margin-top:4px">${esc(A)} ${fm(pa)}, ${esc(B)} ${fm(pb)} o'z pulidan to'lagan. Farqning yarmi qaytariladi. Kassadan to'langani ikkalasiga teng.</div>
+      ${nb?'<div style="font-size:12px;color:var(--r);margin-top:4px">❓ belgilanmagan harajatlarni pastdagi ro\'yxatda tugmani bosib, kim to\'laganini tanlang.</div>':''}</div>`;
+}
+
 // ===== KUNLIK =====
 const dKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const kParts=k=>k.split('-').map(Number);
@@ -337,7 +383,7 @@ function renderDay(){
     ${rows.map(r=>`<tr><td>${esc(r.label)}${r.yangi?' <span style="font-size:11px;color:var(--p)">yangi</span>':''}</td><td>${fmM(r.in)}</td><td>${r.bugun?'<b>'+fmM(r.bugun)+'</b>':'—'}</td><td>${fmM(r.jami)}</td><td><b style="color:var(--p)">${fmM(r.left)}</b></td></tr>`).join('')}</table>`
     :'<div class="empty">Bu kunda omborda chaspak yo\'q edi</div>';
   $('d-sales').innerHTML=S.map(s=>`<div class="it"><div><div class="n">${esc(P[s.bid]?P[s.bid].label:s.name)} · ${fmM(s.m)}</div><div class="s">${dt(s.t).slice(-5)} · ${fm(s.price)}/m${s.note?' · '+esc(s.note):''}</div></div><div class="a">${fm(s.sum)}</div><button class="del" onclick="del('sales','${s.id}')">✕</button></div>`).join('')||'<div class="empty">Sotuv yo\'q</div>';
-  $('d-exps').innerHTML=E.map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t).slice(-5)}</div><div><button class="tag ${e.notCash?'':'on'}" onclick="toggleExp('${e.id}')">${e.notCash?'💵 Savdo pulidan emas':'💵 Savdo pulidan ✓'}</button></div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
+  $('d-exps').innerHTML=E.map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t).slice(-5)}</div><div><button class="tag ${payerOf(e)==='kassa'?'on':''}" onclick="toggleExp('${e.id}')">${payerLabel(payerOf(e))}</button></div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
   $('d-buys').innerHTML=B.map(b=>`<div class="it"><div><div class="n">${esc(P[b.id]?P[b.id].label:b.name)} · ${fmM(b.m)}</div><div class="s">1 metr = ${fm(b.sum/b.m)}${b.fromCash?' · 💵 savdo pulidan':''}</div></div><div class="a">${fm(b.sum)}</div></div>`).join('')||'<div class="empty">Kirim yo\'q</div>';
 }
 function setDay(k){if(k&&k<=dKey(Date.now())){dayK=k;renderDay()}}
@@ -350,7 +396,7 @@ $('d-e-add').onclick=()=>{
   const name=$('d-e-name').value.trim(),sum=num($('d-e-sum').value);
   if(!name||sum<=0)return toast('Nomi va summani kiriting');
   const[y,m,d]=kParts(dayK),t=dayK===dKey(Date.now())?Date.now():new Date(y,m-1,d,12).getTime();
-  D.exps.push({id:uid(),t,name,sum,notCash:!$('d-e-cash').checked});$('d-e-cash').checked=true;
+  const py=$('d-e-payer').value;D.exps.push({id:uid(),t,name,sum,payer:py,notCash:py!=='kassa'});$('d-e-payer').value='kassa';
   $('d-e-name').value='';$('d-e-sum').value='';save();toast('Harajat qo\'shildi');
 };
 
@@ -401,8 +447,8 @@ function render(){
   // Ro'yxatlar
   $('sales').innerHTML=D.sales.slice().reverse().slice(0,50).map(s=>`<div class="it"><div><div class="n">${esc(P[s.bid]?P[s.bid].label:s.name)} · ${fmM(s.m)}</div><div class="s">${dt(s.t)} · ${fm(s.price)}/m · foyda <span class="${s.sum-s.cost<0?'neg':'pos'}">${fm(s.sum-s.cost)}</span>${s.note?' · '+esc(s.note):''}</div></div><div class="a">${fm(s.sum)}</div><button class="del" onclick="del('sales','${s.id}')">✕</button></div>`).join('')||'<div class="empty">Sotuv yo\'q</div>';
   $('buys').innerHTML=D.buys.slice().reverse().map(b=>`<div class="it"><div><div class="n">${esc(b.name)} · ${fmM(b.m)}</div><div class="s">${dt(b.t)} · 1 metr = ${fm(b.sum/b.m)}${P[b.id]?' · qoldi '+fmM(P[b.id].left):''}</div><div><button class="tag" onclick="editBuy('${b.id}')">✏️ Tuzatish</button><button class="tag ${b.fromCash?'on':''}" onclick="toggleCash('${b.id}')">${b.fromCash?'💵 Savdo pulidan ✓':'💵 Savdo pulidanmi?'}</button></div></div><div class="a">${fm(b.sum)}</div><button class="del" onclick="del('buys','${b.id}')">✕</button></div>`).join('')||'<div class="empty">Kirim yo\'q</div>';
-  $('exps').innerHTML=D.exps.slice().reverse().map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t)}</div><div><button class="tag ${e.notCash?'':'on'}" onclick="toggleExp('${e.id}')">${e.notCash?'💵 Savdo pulidan emas':'💵 Savdo pulidan ✓'}</button></div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
-  salePrev();buyPrev();lossPrev();renderDay();
+  $('exps').innerHTML=D.exps.slice().reverse().map(e=>`<div class="it"><div><div class="n">${esc(e.name)}</div><div class="s">${dt(e.t)}</div><div><button class="tag ${payerOf(e)==='kassa'?'on':''}" onclick="toggleExp('${e.id}')">${payerLabel(payerOf(e))}</button></div></div><div class="a neg">${fm(e.sum)}</div><button class="del" onclick="del('exps','${e.id}')">✕</button></div>`).join('')||'<div class="empty">Harajat yo\'q</div>';
+  salePrev();buyPrev();lossPrev();renderDay();fillPayers();renderSplit();
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
@@ -463,7 +509,7 @@ $('l-add').onclick=()=>{
 $('e-add').onclick=()=>{
   const name=$('e-name').value.trim(),sum=num($('e-sum').value);
   if(!name||sum<=0)return toast('Nomi va summani kiriting');
-  D.exps.push({id:uid(),t:Date.now(),name,sum,notCash:!$('e-cash').checked});$('e-cash').checked=true;
+  const py=$('e-payer').value;D.exps.push({id:uid(),t:Date.now(),name,sum,payer:py,notCash:py!=='kassa'});$('e-payer').value='kassa';
   $('e-name').value='';$('e-sum').value='';save();toast('Harajat qo\'shildi');
 };
 
@@ -477,7 +523,11 @@ function editBuy(id){
   [...D.sales,...D.loss].filter(r=>r.bid===id).forEach(r=>r.cost=r.m*ns/nm);
   save();toast('Tuzatildi ✅');
 }
-function toggleExp(id){const e=D.exps.find(x=>x.id===id);if(e){e.notCash=!e.notCash;save()}}
+function toggleExp(id){
+  const e=D.exps.find(x=>x.id===id);if(!e)return;
+  const order=['kassa',...people()],i=order.indexOf(payerOf(e));
+  e.payer=i<0?order[1]:order[(i+1)%order.length];e.notCash=e.payer!=='kassa';save();
+}
 function toggleCash(id){const b=D.buys.find(x=>x.id===id);if(b){b.fromCash=!b.fromCash;save()}}
 function del(k,id){const n=k==='buys'?D.sales.filter(s=>s.bid===id).length:0;if(confirm(n?`Bu kirimdan ${n} ta sotuv yozilgan. Baribir o'chirilsinmi?`:'O\'chirilsinmi?')){D[k]=D[k].filter(x=>x.id!==id);save()}}
 
